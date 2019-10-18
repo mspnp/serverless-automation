@@ -64,4 +64,4 @@ az group deployment create \
 
 #### Navigate back to the README.md to validate this setup
 
-Click [here](https://github.com/mspnp/serverless-automation/throttling-responder/deployment.md#Alerting_and_action_group_triggering_function_validation) to navigate back to the main validation section.
+Click [here](./deployment.md#Alerting_and_action_group_triggering_function_validation) to navigate back to the main validation section.
