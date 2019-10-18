@@ -17,7 +17,7 @@ The deployment steps shown here use Bash shell commands. On Windows, you can use
 
 ```bash
 git clone https://github.com/mspnp/serverless-automation && \
-cd ./serverless-automation
+cd ./src/automation/throttling-responder
 ```
 
 ## Deploy the throttling automation respond scenario
@@ -100,4 +100,4 @@ az cosmosdb collection update \
 
 ### Optionally deploy the Powershell Core Azure Function that respond to 429s
 
-Navigate to the Powershell Core deployment steps [here](https://github.com/mspnp/serverless-automation/throttling-responder/deployment-pwsh.md).
+Navigate to the Powershell Core deployment steps [here](./deployment-pwsh.md).
