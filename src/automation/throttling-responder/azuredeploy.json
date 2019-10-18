@@ -1,0 +1,128 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "cosmosDbResourceGroup": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB resource group name"
+            }
+        },
+        "cosmosDbAccountName": {
+            "type": "string",
+            "maxLength": 37,
+            "metadata": {
+              "description": "Cosmos DB account name"
+            }
+        },
+        "cosmosDbDatabaseName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB database name"
+            }
+        },
+        "cosmosDbContainerName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB container name"
+            }
+        },
+        "cosmosDbContainerMaxRUs": {
+            "type": "int",
+            "metadata": {
+              "description": "Cosmos DB collection resource units to be provision when facing 429s"
+            }
+        }
+    },
+    "variables": {
+        "azfuncDeployName": "[concat(deployment().name,'-py-messaging')]",
+        "roleAssignmentDeployName": "[concat(deployment().name,'-roleassignment')]",
+        "monitoringDeployName": "[concat(deployment().name,'-monitoring')]",
+        "throttlingRespondFunctionName": "forward-throttling-alerts"
+    },
+    "resources": [
+        {
+            "apiVersion": "2019-05-01",
+            "name": "[variables('azfuncDeployName')]",
+            "type": "Microsoft.Resources/deployments",
+            "properties": {
+                "mode": "incremental",
+                "templateLink": {
+                    "uri": "[uri(deployment().properties.templateLink.uri, 'azuredeploy-py-messaging.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "cosmosDbResourceGroup":{"value": "[parameters('cosmosDbResourceGroup')]"},
+                    "cosmosDbAccountName":{"value": "[parameters('cosmosDbAccountName')]"},
+                    "cosmosDbDatabaseName":{"value": "[parameters('cosmosDbDatabaseName')]"},
+                    "cosmosDbContainerName":{"value": "[parameters('cosmosDbContainerName')]"},
+                    "cosmosDbContainerMaxRUs":{"value": "[parameters('cosmosDbContainerMaxRUs')]"}
+                }
+            }
+        },
+        {
+            "apiVersion": "2019-05-01",
+            "name": "[variables('roleAssignmentDeployName')]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('cosmosDbResourceGroup')]",
+            "dependsOn":[
+                "[variables('azfuncDeployName')]"
+            ],
+            "properties": {
+                "mode": "incremental",
+                "templateLink": {
+                    "uri": "[uri(deployment().properties.templateLink.uri, 'azuredeploy-roleassignment.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "throttlingRespondFunctionAppName":{"value": "[reference(variables('azfuncDeployName')).outputs.throttlingRespondFunctionAppName.value]"},
+                    "throttlingRespondFunctionAppSystemAssignedPrincipalId":{"value": "[reference(variables('azfuncDeployName')).outputs.throttlingRespondFunctionAppSystemAssignedPrincipalId.value]"}
+                }
+            }
+        },
+        {
+            "apiVersion": "2019-05-01",
+            "name": "[variables('monitoringDeployName')]",
+            "type": "Microsoft.Resources/deployments",
+            "resourceGroup": "[parameters('cosmosDbResourceGroup')]",
+            "dependsOn":[
+                "[variables('azfuncDeployName')]"
+            ],
+            "properties": {
+                "mode": "incremental",
+                "templateLink": {
+                    "uri": "[uri(deployment().properties.templateLink.uri, 'azuredeploy-monitoring.json')]",
+                    "contentVersion": "1.0.0.0"
+                },
+                "parameters":{
+                    "throttlingRespondFunctionAppId":{"value": "[reference(variables('azfuncDeployName')).outputs.throttlingRespondFunctionAppId.value]"},
+                    "throttlingRespondFunctionAppName":{"value": "[reference(variables('azfuncDeployName')).outputs.throttlingRespondFunctionAppName.value]"},
+                    "throttlingRespondFunctionName":{"value": "[variables('throttlingRespondFunctionName')]"},
+                    "cosmosDbAccountName":{"value": "[parameters('cosmosDbAccountName')]"}
+                }
+            }
+        }
+    ],
+    "outputs": {
+        "azfuncDeployName": {
+            "type": "string",
+            "value": "[variables('azfuncDeployName')]"
+        },
+        "roleAssignmentDeployName": {
+            "type": "string",
+            "value": "[variables('roleAssignmentDeployName')]"
+        },
+        "monitoringDeployName": {
+            "type": "string",
+            "value": "[variables('monitoringDeployName')]"
+        },
+        "throttlingRespondFunctionAppName": {
+            "type": "string",
+            "value": "[reference(variables('azfuncDeployName')).outputs.throttlingRespondFunctionAppName.value]"
+        },
+        "throttlingRespondFunctionName": {
+            "type": "string",
+            "value": "[variables('throttlingRespondFunctionName')]"
+        }
+    }
+}

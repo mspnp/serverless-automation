@@ -1,0 +1,131 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+    "parameters": {
+        "throttlingRespondMetricAlertName": {
+            "type": "string",            
+            "defaultValue": "throttling-alert",
+            "metadata": {
+                "description": "Azure Monitor Metric Alert name"
+            }
+        },
+        "throttlingRespondActionGroupName": {
+            "type": "string",
+            "defaultValue": "throttling-actiongroup",
+            "metadata": {
+                "description": "Action group name"
+            }
+        },
+        "throttlingRespondActionFunctionReceiverName": {
+            "type": "string",
+            "defaultValue": "throttling-notifyazfunc",
+            "metadata": {
+                "description": "Action receiver name"
+            }
+        },
+        "throttlingRespondFunctionAppId": {
+            "type": "string",
+            "metadata": {
+                "description": "Azure Function App Id"
+            }
+        },
+        "throttlingRespondFunctionAppName": {
+            "type": "string",
+            "metadata": {
+                "description": "Azure Function App name"
+            }
+        },
+        "throttlingRespondFunctionName": {
+            "type": "string",
+            "metadata": {
+                "description": "Azure Http trigger function name"
+            }
+        },
+        "cosmosDbAccountName": {
+            "type": "string",
+            "maxLength": 39,
+            "metadata": {
+              "description": "Cosmos DB account name"
+            }
+        }
+    },
+	"variables": {
+    },
+    "resources": [
+    {
+        "name": "[parameters('throttlingRespondActionGroupName')]",
+        "type": "Microsoft.Insights/actionGroups",
+        "apiVersion": "2019-06-01",
+        "location": "Global",
+        "tags": {
+            "displayName": "Throttling Automation Respond Action Group"
+        },
+        "properties": {
+            "groupShortName": "429ag",
+            "enabled": "true",
+            "emailReceivers": [],
+            "smsReceivers": [],
+            "webhookReceivers": [],
+            "itsmReceivers": [],
+            "azureAppPushReceivers": [],
+            "automationRunbookReceivers": [],
+            "voiceReceivers": [],
+            "logicAppReceivers": [],
+            "azureFunctionReceivers": [
+            {
+                "name": "[parameters('throttlingRespondActionFunctionReceiverName')]",
+                "functionAppResourceId": "[parameters('throttlingRespondFunctionAppId')]",
+                "functionName": "[parameters('throttlingRespondFunctionName')]",
+                "httpTriggerUrl": "[concat('https://',parameters('throttlingRespondFunctionAppName'),'.azurewebsites.net/api/',parameters('throttlingRespondFunctionName'), '?code=',listkeys(concat(parameters('throttlingRespondFunctionAppId'), '/host/default/'),'2016-08-01').functionKeys.default)]",
+                "useCommonAlertSchema": true
+            }
+            ],
+            "armRoleReceivers": []
+        }
+    },
+    {
+        "name": "[parameters('throttlingRespondMetricAlertName')]",
+        "type": "Microsoft.Insights/metricAlerts",
+        "apiVersion": "2018-03-01",
+        "location": "Global",
+        "tags": {
+            "displayName": "Throttling Automation Respond Monitor Metric Alert"
+        },
+        "dependsOn":[
+            "[resourceId('Microsoft.Insights/actionGroups', parameters('throttlingRespondActionGroupName'))]"
+        ],
+        "properties": {
+            "description": "Drone Utilization 429s alert",
+            "severity": 2,
+            "enabled": true,
+            "scopes": [
+                "[resourceId('Microsoft.DocumentDB/databaseAccounts', parameters('cosmosDbAccountName'))]"
+            ],
+            "evaluationFrequency": "PT1M",
+            "windowSize": "PT1M",
+            "criteria": {
+                "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                "allOf": [
+                    {
+                        "criterionType": "StaticThresholdCriterion",
+                        "dimensions": [],
+                        "metricName": "TotalRequestUnits",
+                        "metricNamespace": "microsoft.documentdb/databaseaccounts",
+                        "name": "cond0",
+                        "operator": "GreaterThan",
+                        "threshold": 20000.0,
+                        "timeAggregation": "Total"
+                    }
+                ]
+            },
+            "actions": [
+                {
+                    "actionGroupId": "[resourceId('Microsoft.Insights/actionGroups', parameters('throttlingRespondActionGroupName'))]"
+                }
+            ]
+        }
+    }
+    ],
+    "outputs": {
+    }
+}

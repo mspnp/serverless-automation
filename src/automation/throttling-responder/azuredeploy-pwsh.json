@@ -1,0 +1,189 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "type": "string",
+            "defaultValue": "429auto",
+            "maxLength": 7,
+            "metadata": {
+                "description": "App service plan name"
+            }
+        },
+        "cosmosDbResourceGroup": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB resource group name"
+            }
+        },
+        "cosmosDbAccountName": {
+            "type": "string",
+            "maxLength": 39,
+            "metadata": {
+              "description": "Cosmos DB account name"
+            }
+        },
+        "cosmosDbDatabaseName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB database name"
+            }
+        },
+        "cosmosDbContainerName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB container name"
+            }
+        },
+        "cosmosDbContainerMaxRUs": {
+            "type": "int",
+            "metadata": {
+              "description": "Cosmos DB collection resource units to be provision when facing 429s"
+            }
+        }
+    },
+	"variables": {
+        "throttlingRespondAppServiceName": "[concat(parameters('appName'),uniqueString(resourceGroup().id))]",
+        "throttlingRespondStorageAccountName": "[toLower(concat(variables('throttlingRespondAppServiceName'),'sto'))]",
+        "throttlingRespondStorageAccountId": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('throttlingRespondStorageAccountName'))]",
+        "throttlingRespondAppInsightsName": "[concat(parameters('appName'),'-',parameters('cosmosDbAccountName'),'-ai-pwsh')]",
+        "throttlingRespondFunctionAppName": "[concat(parameters('appName'),'-',parameters('cosmosDbAccountName'),'-funcapp-pwsh')]"
+	},
+    "resources": [
+    {
+        "type": "Microsoft.Insights/components",
+        "kind": "other",
+        "name": "[variables('throttlingRespondAppInsightsName')]",
+        "apiVersion": "2015-05-01",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "Throttling Automation Respond App Insights"
+        },
+        "scale": null,
+        "properties": {
+            "Application_Type": "other",
+            "ApplicationId": "[variables('throttlingRespondFunctionAppName')]"
+        },
+        "dependsOn": []
+    },
+    {
+        "type": "Microsoft.Web/serverfarms",
+        "apiVersion": "2016-09-01",
+        "name": "[variables('throttlingRespondAppServiceName')]",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "Throttling Automation Respond App Service"
+        },
+        "sku": {
+            "name": "Y1",
+            "tier": "Dynamic",
+            "size": "Y1",
+            "family": "Y",
+            "capacity": 0
+        },
+        "kind": "functionapp",
+        "properties": {
+            "name": "[variables('throttlingRespondAppServiceName')]",
+            "perSiteScaling": false,
+            "reserved": true,
+            "targetWorkerCount": 0,
+            "targetWorkerSizeId": 0
+        }
+    },
+    {
+        "name": "[variables('throttlingRespondStorageAccountName')]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2019-04-01",
+        "sku": {
+            "name": "Standard_LRS"
+        },
+        "dependsOn": [],
+        "tags": {
+            "displayName": "Throttling Respond Storage Account"
+        },
+        "kind": "Storage",
+        "properties": {
+            "supportsHttpsTrafficOnly": true,
+            "encryption": {
+                "services": {
+                    "blob": {
+                        "enabled": true
+                    },
+                    "file": {
+                        "enabled": true
+                    }
+                },
+                "keySource": "Microsoft.Storage"
+            }
+        }
+    },
+    {
+        "name": "[variables('throttlingRespondFunctionAppName')]",
+        "type": "Microsoft.Web/sites",
+        "apiVersion": "2018-11-01",
+        "location": "[resourceGroup().location]",
+        "kind": "functionapp",
+        "tags": {
+            "displayName": "Throttling Automation Respond Function App"
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Web/serverfarms', variables('throttlingRespondAppServiceName'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('throttlingRespondStorageAccountName'))]",
+            "[resourceId('microsoft.insights/components', variables('throttlingRespondAppInsightsName'))]"
+        ],
+        "properties": {
+            "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('throttlingRespondAppServiceName'))]",
+            "siteConfig": {
+                "appSettings": [
+                    {
+                        "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                        "value": "[reference(concat('microsoft.insights/components/', variables('throttlingRespondAppInsightsName'))).InstrumentationKey]"
+                    },
+                    {
+                        "name": "AzureWebJobsStorage",
+                        "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('throttlingRespondStorageAccountName'), ';AccountKey=', listKeys(variables('throttlingRespondStorageAccountId'),'2015-05-01-preview').key1)]"
+                    },
+                    {
+                        "name": "FUNCTIONS_EXTENSION_VERSION",
+                        "value": "~2"
+                    },
+                    {
+                        "name": "CosmosDbRUs",
+                        "value": "[parameters('cosmosDbContainerMaxRUs')]"
+                    },
+                    {
+                        "name": "CosmosDbResourceGroup",
+                        "value": "[parameters('cosmosDbResourceGroup')]"
+                    },
+                    {
+                        "name": "CosmosDbAccountName",
+                        "value": "[parameters('CosmosDbAccountName')]"
+                    },
+                    {
+                        "name": "CosmosDbDatabaseName",
+                        "value": "[parameters('cosmosDbDatabaseName')]"
+                    },
+                    {
+                        "name": "CosmosDbContainterName",
+                        "value": "[parameters('cosmosDbContainerName')]"
+                    }
+                ]
+            }
+        },
+        "identity": {
+            "type": "SystemAssigned"
+        }
+    }
+    ],
+    "outputs": {
+        "throttlingRespondFunctionAppName": {
+            "type": "string",
+            "value": "[variables('throttlingRespondFunctionAppName')]"
+        },
+        "throttlingRespondFunctionAppSystemAssignedPrincipalId":{
+            "type":"string",
+            "value": "[reference(concat('Microsoft.Web/sites/', variables('throttlingRespondFunctionAppName')), '2018-11-01', 'Full').identity.principalId]"
+        }
+    }
+}

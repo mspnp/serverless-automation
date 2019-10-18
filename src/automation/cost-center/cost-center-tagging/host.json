@@ -1,0 +1,18 @@
+{
+  "version": "2.0",
+  "managedDependency": {
+    "enabled": true
+  },
+  "logging": {
+    "fileLoggingMode": "always",
+    "logLevel": {
+      "default": "Trace",
+      "Host.Results": "Trace",
+      "Function": "Trace",
+      "Host.Aggregator": "Trace"
+    }
+  },
+  "http": {
+      "maxConcurrentRequests": 1
+  }
+}

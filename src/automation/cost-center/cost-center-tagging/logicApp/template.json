@@ -1,0 +1,211 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "LogicAppName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80,
+            "defaultValue": "CostCenterTaggingWorkflow",
+            "metadata": {
+                "description": "The resource name to use for the logic app"
+            }
+        },
+        "LogicAppLocation": {
+            "type": "string",
+            "minlength": 1,
+            "defaultValue": "[resourceGroup().location]",
+            "metadata": {
+                "description": "The resource location to use for the logic app"
+            }
+        },
+        "Office365ConnectionName": {
+            "type": "string",
+            "defaultValue": "office365",
+            "metadata": {
+                "description": "The resource name to use for the Office 365 Outlook connection"
+            }
+        },
+        "AzureEventGridConnectionName": {
+            "type": "string",
+            "defaultValue": "azureeventgrid",
+            "metadata": {
+                "description": "The resource name to use for the Event Grid connection"
+            }
+        },
+        "ReactorFunctionName": {
+            "type": "string",
+            "defaultValue": "resource-group-reactor-2",
+            "metadata": {
+                "description": "The name of the Azure Function app"
+            }
+        }
+   },
+    "variables": {
+        "functionAppExternalId": "[concat('/subscriptions/',subscription().subscriptionId ,'/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Web/sites/', parameters('ReactorFunctionName'))]"
+    },
+    "resources": [
+        {
+            "properties": {
+                "state": "Disabled",
+                "definition": {
+                    "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+                    "actions": {
+                        "Send_an_email_(V2)": {
+                            "runAfter": {
+                                "When_a_resource_write_succeeds": [
+                                    "Succeeded"
+                                ]
+                            },
+                            "type": "ApiConnection",
+                            "inputs": {
+                                "body": {
+                                    "Body": "<p>New resource has been deployed in the resource group<br>\n<br>\nEvent Id: @{triggerBody()?['id']}<br>\nEvent Time: @{triggerBody()?['eventTime']}<br>\nEvent Type: &nbsp;@{triggerBody()?['eventType']}<br>\nSubscription: &nbsp;@{triggerBody()?['data']?['subscriptionId']}<br>\nResource: &nbsp;@{triggerBody()?['subject']}<br>\nTags: &nbsp;@{body('OnResourceWriteSuccess')}<br>\nResource Group: &nbsp;@{triggerBody()?['topic']}<br>\nOriginator name: &nbsp; @{triggerBody()?['data']?['claims']?['name']}<br>\nOriginator email: &nbsp; @{triggerBody()?['data']?['claims']?['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn']}</p>",
+                                    "Subject": "@{triggerBody()?['data']?['operationName']} operation succeeded in @{triggerBody()?['topic']}",
+                                    "To": "@{triggerBody()?['data']?['claims']?['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn']}"
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['office365']['connectionId']"
+                                    }
+                                },
+                                "method": "post",
+                                "path": "/v2/Mail"
+                            }
+                        },
+                        "When_a_resource_write_succeeds": {
+                            "actions": {
+                                "OnResourceWriteSuccess": {
+                                    "runAfter": {
+                                    },
+                                    "type": "Function",
+                                    "inputs": {
+                                        "body": "@triggerBody()?['data']",
+                                        "function": {
+                                            "id": "[concat(variables('functionAppExternalId'), '/functions/OnResourceWriteSuccess')]"
+                                        }
+                                    }
+                                }
+                            },
+                            "runAfter": {
+                            },
+                            "expression": {
+                                "and": [
+                                    {
+                                        "endsWith": [
+                                            "@triggerBody()?['data']['operationName']",
+                                            "write"
+                                        ]
+                                    },
+                                    {
+                                        "equals": [
+                                            "@triggerBody()?['data']['status']",
+                                            "Succeeded"
+                                        ]
+                                    }
+                                ]
+                            },
+                            "type": "If"
+                        }
+                    },
+                    "parameters": {
+                        "$connections": {
+                            "defaultValue": {
+                            },
+                            "type": "Object"
+                        }
+                    },
+                    "triggers": {
+                        "When_a_resource_event_occurs": {
+                            "splitOn": "@triggerBody()",
+                            "type": "ApiConnectionWebhook",
+                            "inputs": {
+                                "body": {
+                                    "properties": {
+                                        "destination": {
+                                            "endpointType": "webhook",
+                                            "properties": {
+                                                "endpointUrl": "@{listCallbackUrl()}"
+                                            }
+                                        },
+                                        "filter": {
+                                            "includedEventTypes": [
+                                                "Microsoft.Resources.ResourceWriteSuccess"
+                                            ]
+                                        },
+                                        "topic": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourcegroup().name)]"
+                                    }
+                                },
+                                "host": {
+                                    "connection": {
+                                        "name": "@parameters('$connections')['azureeventgrid']['connectionId']"
+                                    }
+                                },
+                                "path": "/subscriptions/@{encodeURIComponent(subscription().subscriptionId)}/providers/@{encodeURIComponent('Microsoft.Resources.ResourceGroups')}/resource/eventSubscriptions",
+                                "queries": {
+                                    "x-ms-api-version": "2017-09-15-preview"
+                                }
+                            }
+                        }
+                    },
+                    "contentVersion": "1.0.0.0",
+                    "outputs": {
+                    }
+                },
+                "parameters": {
+                    "$connections": {
+                        "value": {
+                            "azureeventgrid": {
+                                "connectionId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Web/connections/',parameters('AzureEventGridConnectionName'))]",
+                                "connectionName": "[parameters('AzureEventGridConnectionName')]",
+                                "id": "[concat('/subscriptions/', subscription().subscriptionId, '/providers/Microsoft.Web/locations/', parameters('LogicAppLocation'), '/managedApis/', 'azureeventgrid')]"
+                            },
+                            "office365": {
+                                "id": "[concat(subscription().id, '/providers/Microsoft.Web/locations/', parameters('LogicAppLocation'), '/managedApis/', 'office365')]",
+                                "connectionId": "[concat('/subscriptions/', subscription().subscriptionId, '/resourceGroups/', resourceGroup().name, '/providers/Microsoft.Web/connections/', parameters('Office365ConnectionName'))]",
+                                "connectionName": "[parameters('Office365ConnectionName')]"
+                            }
+                        }
+                    }
+                },
+                "accessControl": {
+                }
+            },
+            "name": "[parameters('LogicAppName')]",
+            "type": "Microsoft.Logic/workflows",
+            "location": "[parameters('LogicAppLocation')]",
+            "apiVersion": "2017-07-01",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/connections', parameters('Office365ConnectionName'))]"
+            ]
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[parameters('AzureEventGridConnectionName')]",
+            "location": "[parameters('LogicAppLocation')]",
+            "properties": {
+                "displayName": "[parameters('AzureEventGridConnectionName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/',subscription().subscriptionId,'/providers/Microsoft.Web/locations/', parameters('LogicAppLocation'),'/managedApis/', parameters('AzureEventGridConnectionName'))]"
+                }
+            }
+        },
+        {
+            "type": "Microsoft.Web/connections",
+            "apiVersion": "2016-06-01",
+            "name": "[parameters('Office365ConnectionName')]",
+            "location": "[parameters('LogicAppLocation')]",
+            "properties": {
+                "displayName": "[parameters('Office365ConnectionName')]",
+                "customParameterValues": {},
+                "api": {
+                    "id": "[concat('/subscriptions/',subscription().subscriptionId,'/providers/Microsoft.Web/locations/', parameters('LogicAppLocation'),'/managedApis/', parameters('Office365ConnectionName'))]"
+                }
+            }
+        }
+    ],
+    "outputs": {
+    }
+}

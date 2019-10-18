@@ -1,0 +1,274 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+	"contentVersion": "1.0.0.0",
+    "parameters": {
+        "appName": {
+            "type": "string",
+            "defaultValue": "429auto",
+            "maxLength": 7,
+            "metadata": {
+                "description": "App service plan name"
+            }
+        },
+        "throttlingRespondServiceBusNamespaceName": {
+            "type": "string",
+            "defaultValue": "alert-messaging",
+            "metadata": {
+              "description": "Cosmos DB account name"
+            }
+        },
+        "cosmosDbResourceGroup": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB resource group name"
+            }
+        },
+        "cosmosDbAccountName": {
+            "type": "string",
+            "maxLength": 37,
+            "metadata": {
+              "description": "Cosmos DB account name"
+            }
+        },
+        "cosmosDbDatabaseName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB database name"
+            }
+        },
+        "cosmosDbContainerName": {
+            "type": "string",
+            "metadata": {
+              "description": "Cosmos DB container name"
+            }
+        },
+        "cosmosDbContainerMaxRUs": {
+            "type": "int",
+            "metadata": {
+              "description": "Cosmos DB collection resource units to be provision when facing 429s"
+            }
+        }
+    },
+	"variables": {
+        "throttlingRespondServiceBusQueueName": "throttling-alerts",
+        "throttlingRespondAppServiceName": "[concat(parameters('appName'),uniqueString(resourceGroup().id))]",
+        "throttlingRespondStorageAccountName": "[toLower(concat(variables('throttlingRespondAppServiceName'),'sto'))]",
+        "throttlingRespondStorageAccountId": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('throttlingRespondStorageAccountName'))]",
+        "throttlingRespondFunctionAppName": "[concat(parameters('appName'),'-',parameters('cosmosDbAccountName'),'-funcapp-py-msg')]",
+        "throttlingRespondAppInsightsName": "[concat(parameters('appName'),'-',parameters('cosmosDbAccountName'),'-ai-py-msg')]",
+        "throttlingRespondServiceBusConnStringSend": "sendalerts",
+        "throttlingRespondServiceBusConnStringListen": "listenalerts"
+	},
+    "resources": [
+    {
+        "type": "Microsoft.ServiceBus/namespaces",
+        "name": "[parameters('throttlingRespondServiceBusNamespaceName')]",
+        "apiVersion": "2017-04-01",
+        "location": "[resourceGroup().location]",
+        "sku": {
+            "name": "Standard",
+            "tier": "Standard"
+        },
+        "tags": {
+            "displayName": "Alert Messaging Service Bus",
+            "app-producer": "fabrikam-forward-alerts",
+            "app-consumer": "fabrikam-cosmosdb-ru-provisioning"
+        },
+        "properties": {},
+        "resources": [
+            {
+                "name": "[variables('throttlingRespondServiceBusQueueName')]",
+                "type": "queues",
+                "apiVersion": "2017-04-01",
+                "dependsOn": [
+                    "[resourceId('Microsoft.ServiceBus/namespaces', parameters('throttlingRespondServiceBusNamespaceName'))]"
+                ],
+                "properties": {
+                    "lockDuration": "PT20S",
+                    "maxSizeInMegabytes": 1024,
+                    "defaultMessageTimeToLive": "PT1M",
+                    "maxDeliveryCount": 2
+                },
+                "resources": [
+                    {
+                        "name": "[variables('throttlingRespondServiceBusConnStringSend')]",
+                        "type": "authorizationRules",
+                        "apiVersion": "2017-04-01",
+                        "properties": {
+                            "rights": [
+                                "Send"
+                            ]
+                        },
+                        "dependsOn": [
+                            "[resourceId('Microsoft.ServiceBus/namespaces/queues', parameters('throttlingRespondServiceBusNamespaceName'), variables('throttlingRespondServiceBusQueueName'))]"
+                        ]
+                    },
+                    {
+                        "name": "[variables('throttlingRespondServiceBusConnStringListen')]",
+                        "type": "authorizationRules",
+                        "apiVersion": "2017-04-01",
+                        "properties": {
+                            "rights": [
+                                "Listen"
+                            ]
+                        },
+                        "dependsOn": [
+                            "[resourceId('Microsoft.ServiceBus/namespaces/queues', parameters('throttlingRespondServiceBusNamespaceName'), variables('throttlingRespondServiceBusQueueName'))]"
+                        ]
+                    }        
+                ]
+            }
+        ]
+    },
+    {
+        "type": "Microsoft.Insights/components",
+        "kind": "other",
+        "name": "[variables('throttlingRespondAppInsightsName')]",
+        "apiVersion": "2015-05-01",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "Throttling Automation Respond App Insights"
+        },
+        "scale": null,
+        "properties": {
+            "Application_Type": "other",
+            "ApplicationId": "[variables('throttlingRespondFunctionAppName')]"
+        },
+        "dependsOn": []
+    },
+    {
+        "type": "Microsoft.Web/serverfarms",
+        "apiVersion": "2016-09-01",
+        "name": "[variables('throttlingRespondAppServiceName')]",
+        "location": "[resourceGroup().location]",
+        "tags": {
+            "displayName": "Throttling Automation Respond App Service"
+        },
+        "sku": {
+            "name": "Y1",
+            "tier": "Dynamic",
+            "size": "Y1",
+            "family": "Y",
+            "capacity": 0
+        },
+        "kind": "functionapp",
+        "properties": {
+            "name": "[variables('throttlingRespondAppServiceName')]",
+            "perSiteScaling": false,
+            "reserved": true,
+            "targetWorkerCount": 0,
+            "targetWorkerSizeId": 0
+        }
+    },
+    {
+        "name": "[variables('throttlingRespondStorageAccountName')]",
+        "type": "Microsoft.Storage/storageAccounts",
+        "location": "[resourceGroup().location]",
+        "apiVersion": "2019-04-01",
+        "sku": {
+            "name": "Standard_LRS"
+        },
+        "dependsOn": [],
+        "tags": {
+            "displayName": "Throttling Respond Storage Account"
+        },
+        "kind": "Storage",
+        "properties": {
+            "supportsHttpsTrafficOnly": true,
+            "encryption": {
+                "services": {
+                    "blob": {
+                        "enabled": true
+                    },
+                    "file": {
+                        "enabled": true
+                    }
+                },
+                "keySource": "Microsoft.Storage"
+            }
+        }
+    },
+    {
+        "name": "[variables('throttlingRespondFunctionAppName')]",
+        "type": "Microsoft.Web/sites",
+        "apiVersion": "2018-11-01",
+        "location": "[resourceGroup().location]",
+        "kind": "functionapp",
+        "tags": {
+            "displayName": "Throttling Automation Respond Function App"
+        },
+        "dependsOn": [
+            "[resourceId('Microsoft.Web/serverfarms', variables('throttlingRespondAppServiceName'))]",
+            "[resourceId('Microsoft.Storage/storageAccounts', variables('throttlingRespondStorageAccountName'))]",
+            "[resourceId('microsoft.insights/components', variables('throttlingRespondAppInsightsName'))]"
+        ],
+        "properties": {
+            "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('throttlingRespondAppServiceName'))]",
+            "siteConfig": {
+                "appSettings": [
+                    {
+                        "name": "APPINSIGHTS_INSTRUMENTATIONKEY",
+                        "value": "[reference(concat('microsoft.insights/components/', variables('throttlingRespondAppInsightsName'))).InstrumentationKey]"
+                    },
+                    {
+                        "name": "AzureWebJobsStorage",
+                        "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('throttlingRespondStorageAccountName'), ';AccountKey=', listKeys(variables('throttlingRespondStorageAccountId'),'2015-05-01-preview').key1)]"
+                    },
+                    {
+                        "name": "FUNCTIONS_EXTENSION_VERSION",
+                        "value": "~2"
+                    },
+                    {
+                        "name": "FUNCTIONS_WORKER_RUNTIME",
+                        "value": "python"
+                    },
+                    {
+                        "name": "CosmosDbRUs",
+                        "value": "[parameters('cosmosDbContainerMaxRUs')]"
+                    },                    {
+                        "name": "CosmosDbResourceGroup",
+                        "value": "[parameters('cosmosDbResourceGroup')]"
+                    },
+                    {
+                        "name": "CosmosDbAccountName",
+                        "value": "[parameters('CosmosDbAccountName')]"
+                    },
+                    {
+                        "name": "CosmosDbDatabaseName",
+                        "value": "[parameters('cosmosDbDatabaseName')]"
+                    },
+                    {
+                        "name": "CosmosDbContainterName",
+                        "value": "[parameters('cosmosDbContainerName')]"
+                    },
+                    {
+                        "name": "AzureWebJobsServiceBusSend",
+                        "value": "[replace(listkeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', parameters('throttlingRespondServiceBusNamespaceName'),variables('throttlingRespondServiceBusQueueName'),variables('throttlingRespondServiceBusConnStringSend')), '2017-04-01').primaryConnectionString,concat('EntityPath=',variables('throttlingRespondServiceBusQueueName')),'')]"
+                    },
+                    {
+                        "name": "AzureWebJobsServiceBusListen",
+                        "value": "[replace(listkeys(resourceId('Microsoft.ServiceBus/namespaces/queues/authorizationRules', parameters('throttlingRespondServiceBusNamespaceName'),variables('throttlingRespondServiceBusQueueName'),variables('throttlingRespondServiceBusConnStringListen')), '2017-04-01').primaryConnectionString,concat('EntityPath=',variables('throttlingRespondServiceBusQueueName')),'')]"
+                    }
+                ]
+            }
+        },
+        "identity": {
+            "type": "SystemAssigned"
+        }
+    }
+    ],
+    "outputs": {
+        "throttlingRespondFunctionAppId": {
+            "type": "string",
+            "value": "[resourceId('Microsoft.Web/sites',variables('throttlingRespondFunctionAppName'))]"
+        },
+        "throttlingRespondFunctionAppName": {
+            "type": "string",
+            "value": "[variables('throttlingRespondFunctionAppName')]"
+        },
+        "throttlingRespondFunctionAppSystemAssignedPrincipalId":{
+            "type":"string",
+            "value": "[reference(concat('Microsoft.Web/sites/', variables('throttlingRespondFunctionAppName')), '2018-11-01', 'Full').identity.principalId]"
+        }
+    }
+}

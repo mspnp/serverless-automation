@@ -1,0 +1,16 @@
+{
+    "tagName": {
+        "type": "String",
+        "defaultValue": "CostCenter",
+        "metadata": {
+            "description": "Name of the tag, such as costCenter"
+        }
+    },
+    "tagValue": {
+        "type": "String",
+        "defaultValue": "101010",
+        "metadata": {
+            "description": "Value of the tag, such as headquarter"
+        }
+    }
+}
