@@ -100,6 +100,11 @@ az network vnet create -g $RESOURCE_GROUP -n <vnetname>
 ```
 Note that this resource group is the same as the one with the policy rules set above.
 
-### Verify automation (troubleshooting)
+### Troubleshooting
 
-You should receive email notifications for every resource you create in the monitored resource group. If you don't receive it, login to [Azure Portal](portal.azure.com), navigate to the Logic App created in the automation resource, and click on the input and output connectors. Both of them might need to be additionally signed in and authenticated, depending on your tenant's AAD settings. Once done, restart the logic app, and create another resource to verify.
+You should receive email notifications for every resource you create in the monitored resource group. 
+
+If you don't receive it, try following troubleshooting steps:
+
+1) Sign in to Logic App connectors: Login to [Azure Portal](portal.azure.com), navigate to the Logic App created in the automation resource, click Edit, and in the Logic App Designer, click on the input and output connectors. Both of them might need to be additionally signed in and authenticated, depending on your tenant's AAD settings. Once done, restart the logic app, and create another resource to verify.
+2) Make sure the right subscription is used in the Logic App input connector (azureeventgrid): In the Logic App Designer, open the input connector ("When a resource event occurs", click on the *Subscription*, and if Fx(Subscription) shows up, remove it, and select the correct subscription from the drop down. This bug will be fixed in the next iteration.
