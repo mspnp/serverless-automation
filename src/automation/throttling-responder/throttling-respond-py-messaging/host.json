@@ -6,8 +6,7 @@
     },
     "extensions": {
       "http": {
-          "routePrefix": "api",
-          "maxConcurrentRequests": 1
+          "routePrefix": "api"
       }
     }
 }
