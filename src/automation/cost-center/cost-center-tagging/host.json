@@ -11,8 +11,5 @@
       "Function": "Trace",
       "Host.Aggregator": "Trace"
     }
-  },
-  "http": {
-      "maxConcurrentRequests": 1
   }
 }
