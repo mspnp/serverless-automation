@@ -1,10 +1,8 @@
-# Drone Delivery Serverless Automation
+# Event-based Cloud Automation
 
-This reference implementation contains two serverless automation scenarios as described below.
+Automating workflows and repetitive tasks on the cloud using [serverless technologies](https://azure.microsoft.com/solutions/serverless/), can dramatically improve productivity of an organization's DevOps team. A serverless model is best suited for automation scenarios that fit an [event driven approach](https://docs.microsoft.com/azure/architecture/guide/architecture-styles/event-driven).
 
-## [Throttling response serverless workflow](./src/automation/throttling-responder/deployment.md)
-
-This project contains a workflow for throttling response as a serverless automation scenario. It will provision more resource units for Cosmos DB container when throttling is detected, via Azure Monitor alerts and Azure Action Groups. This automation is available both as Python and Powershell Core (Preview) based Azure Functions. Python implementation builds on top by adding a messaging workflow that handles an HTTP request timeout.
+This repository contains an implementation of the "Cost center tagging" example as presented on the [Event-based cloud automation](https://docs.microsoft.com/azure/architecture/reference-architectures/serverless/cloud-automation) article in the Azure Architecture Center.
 
 ## [Cost center tagging automation workflow](./src/automation/cost-center/deployment.md)
 

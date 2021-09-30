@@ -1,4 +1,0 @@
-azure-functions
-msrestazure==0.6.1
-azure-mgmt-resource==2.2.0
-azure-mgmt-cosmosdb==0.8.0
