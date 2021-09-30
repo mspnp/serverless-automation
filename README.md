@@ -2,7 +2,7 @@
 
 Automating workflows and repetitive tasks on the cloud using [serverless technologies](https://azure.microsoft.com/solutions/serverless/), can dramatically improve productivity of an organization's DevOps team. A serverless model is best suited for automation scenarios that fit an [event driven approach](https://docs.microsoft.com/azure/architecture/guide/architecture-styles/event-driven).
 
-This repository contains an example of the "Cost center tagging" example as presented on the [Event-based cloud automation](https://docs.microsoft.com/azure/architecture/reference-architectures/serverless/cloud-automation) article in the Azure Architecture Center.
+This repository contains an implementation of the "Cost center tagging" example as presented on the [Event-based cloud automation](https://docs.microsoft.com/azure/architecture/reference-architectures/serverless/cloud-automation) article in the Azure Architecture Center.
 
 ## [Cost center tagging automation workflow](./src/automation/cost-center/deployment.md)
 
