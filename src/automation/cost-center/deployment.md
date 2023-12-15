@@ -1,39 +1,40 @@
 # Cost Center Tagging Serverless Automation
 
-This project contains an automation workflow for cost center tagging, using Serverless technologies on Azure. This solution is described in more detail in Azure Architecture center in the [Event-based cloud automation](https://docs.microsoft.com/azure/architecture/reference-architectures/serverless/cloud-automation) article.
+This project contains an automation workflow for cost center tagging, using Serverless technologies on Azure. This solution is described in more detail in Azure Architecture center in the [Event-based cloud automation](https://learn.microsoft.com/azure/architecture/reference-architectures/serverless/cloud-automation) article.
 
 ## Prerequisites
 
 - Azure subscription
-- [Azure Function Core Tools](https://docs.microsoft.com/azure/azure-functions/functions-run-local)
+- [Azure Function Core Tools](https://learn.microsoft.com/azure/azure-functions/functions-run-local)
 
 ## Deploy the cost center automation artifacts
 
-<a href="https://shell.azure.com" title="Launch Azure Cloud Shell"><img name="launch-cloud-shell" src="https://docs.microsoft.com/azure/includes/media/cloud-shell-try-it/launchcloudshell.png" /></a>
+<a href="https://shell.azure.com" title="Launch Azure Cloud Shell"><img name="launch-cloud-shell" src="https://learn.microsoft.com/azure/includes/media/cloud-shell-try-it/launchcloudshell.png" /></a>
 
 Clone the repo
 
 ```bash
 git clone https://github.com/mspnp/serverless-automation
+cd src/automation/cost-center/cost-center-tagging
 ```
 
-The deployment steps shown here use bash shell commands. On Windows, you can use the [Windows Subsystem for Linux](https://docs.microsoft.com/windows/wsl/about) to run Bash.
+The deployment steps shown here use bash shell commands. On Windows, you can use the [Windows Subsystem for Linux](https://learn.microsoft.com/windows/wsl/about) to run Bash.
 
 ### Export the automation variables representing the assets
 
 ```bash
-export SUBSCRIPTION_ID=<subscription-id>
-export RESOURCE_GROUP=<resource-group-name>
-export LOCATION=<resource-group-location>
-export STORAGE_ACCOUNT_NAME=<storageaccountname>
-export APPSERVICE_NAME=<appservice-name>
-export FUNCAPP_NAME=<funcapp-name>
+SUBSCRIPTION_ID=<subscription-id>
+RESOURCE_GROUP=<resource-group-name>
+LOCATION=<resource-group-location>
+STORAGE_ACCOUNT_NAME=<storageaccountname>
+APPSERVICE_NAME=<appservice-name>
+FUNCAPP_NAME=<funcapp-name>
 ```
 
 ### Deploy the logic app
 
 ```bash
-az deployment group create -g $RESOURCE_GROUP -f .\logicApp\template.json  
+az deployment group create -g $RESOURCE_GROUP -f ./logicApp/template.json  
 ```
 
 ### Deploy the Azure Function that responds to the Logic App
@@ -79,6 +80,5 @@ az policy assignment create --name billingPolicy \
 ### Publish the function app
 
 ```bash
-cd ./src/automation/cost-center/cost-center-tagging
 func azure functionapp publish $FUNCAPP_NAME
 ```
