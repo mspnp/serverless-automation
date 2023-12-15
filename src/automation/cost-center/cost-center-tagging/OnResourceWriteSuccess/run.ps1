@@ -27,19 +27,19 @@ Write-Information "Tags"
 $tags | Out-String | Write-Information
 
 # Get the cost center for the user service principal (such as Id or email id)
-Write-Information "Querying AAD to validate the cost center..."
+Write-Information "Querying Entra ID to validate the cost center..."
 
 ##########################################################################################################################
-# Below is an example of a graph query Uri and a REST call to your organization's AAD. Note the use of claims/upn that contains
-# the email id of the resource creator. Query may need to be adjusted, based on the data being returned by AAD
-# To learn, how to use Azure AD, visit - https://docs.microsoft.com/en-us/graph/auth-register-app-v2
-# To learn, how to use Graph API, visit - https://developer.microsoft.com/en-us/graph/get-started                                       
+# Below is an example of a graph query Uri and a REST call to your organization's Entra ID. Note the use of claims/upn that contains
+# the email id of the resource creator. Query may need to be adjusted, based on the data being returned by Entra ID
+# To learn, how to use Microsoft identity platform, visit - https://learn.microsoft.com/graph/auth-register-app-v2
+# To learn, how to use Graph API, visit - https://learn.microsoft.com/graph/graph-explorer/graph-explorer-overview
 ##########################################################################################################################
 ## $graphQueryUri = "https://graph.microsoft.com/v1.0/users/" + $dataReceived['claims']['http://schemas.xmlsoap.org/ws/2005/05/identity/claims/upn'] + "?$select=costcenter"
 ## $response = Invoke-WebRequest -Uri $graphQueryUri -ContentType "application/json" -Method GET -Headers @{Authorization = "Bearer $token"} -ErrorAction Stop
 
 # Parse response to obtain cost center 
-$costCenterAD = 'cost-center-obtained-from-aad-query' # Cost center value obtained from Microsoft Graph query into AAD
+$costCenterAD = 'cost-center-obtained-from-aad-query' # Cost center value obtained from Microsoft Graph query into Entra ID
 
 $updateResource = $false
 if ($tags -and $tags.ContainsKey('CostCenter')) {
