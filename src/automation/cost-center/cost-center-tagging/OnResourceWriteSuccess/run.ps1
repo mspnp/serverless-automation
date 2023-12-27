@@ -39,18 +39,18 @@ Write-Information "Querying Entra ID to validate the cost center..."
 ## $response = Invoke-WebRequest -Uri $graphQueryUri -ContentType "application/json" -Method GET -Headers @{Authorization = "Bearer $token"} -ErrorAction Stop
 
 # Parse response to obtain cost center 
-$costCenterAD = 'cost-center-obtained-from-aad-query' # Cost center value obtained from Microsoft Graph query into Entra ID
+$costCenterEntraId = 'enter-cost-center-obtained-from-entra-id-query' # Cost center value obtained from Microsoft Graph query into Entra ID
 
 $updateResource = $false
 if ($tags -and $tags.ContainsKey('CostCenter')) {
     Write-Information "Policy enforced cost center: $($tags.CostCenter)" 
-    if ($tags.CostCenter -ne $costCenterAD) {
-        Write-Information "Policy enforced cost center is invalid. Assigning cost center $costCenterAD to the resource $resourceId..."
+    if ($tags.CostCenter -ne $costCenterEntraId) {
+        Write-Information "Policy enforced cost center is invalid. Assigning cost center $costCenterEntraId to the resource $resourceId..."
         $updateResource = $true
     }
 }
 else {
-    Write-Information "No cost center assigned. Assigning cost center $costCenterAD to the resource $resourceId..."
+    Write-Information "No cost center assigned. Assigning cost center $costCenterEntraId to the resource $resourceId..."
     $updateResource = $true
 }
 
@@ -58,7 +58,7 @@ try {
     $status = [HttpStatusCode]::OK
     if ($updateResource) {
         if ($null -eq $tags) { $tags = @{ } }
-        $tags.CostCenter = $costCenterAD
+        $tags.CostCenter = $costCenterEntraId
         Set-AzResource -Tag $tags -ResourceId $resourceId -Force -ErrorAction Stop
     }
 
